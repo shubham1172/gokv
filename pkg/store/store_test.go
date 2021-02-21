@@ -1,8 +1,13 @@
 package store
 
 import (
+	"strings"
 	"testing"
 )
+
+func getALongString() string {
+	return strings.Repeat("a", 1025)
+}
 
 func TestPut(t *testing.T) {
 	testCases := []struct {
@@ -10,17 +15,28 @@ func TestPut(t *testing.T) {
 		pkey string // key for Put
 		pval string // value for Put
 		gval string // expected value from Get
+		err  error  // expected error from Put
 	}{
-		{"put new key-value", "testPutKey1", "value1", "value1"},
-		{"overwrite existing key", "testPutKey1", "value2", "value2"},
-		{"put empty value", "testPutKey2", "", ""},
+		{"put new key-value", "testPutKey1", "value1", "value1", nil},
+		{"overwrite existing key", "testPutKey1", "value2", "value2", nil},
+		{"put empty value", "testPutKey2", "", "", nil},
+		{"really long key", getALongString(), "value3", "", ErrorKeySizeTooLarge},
+		{"really long value", "testPutKey3", getALongString(), "", ErrorValueSizeTooLarge},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			Put(tc.pkey, tc.pval)
-			v, _ := Get(tc.pkey)
+			err := Put(tc.pkey, tc.pval)
+			if err != tc.err {
+				t.Errorf("Error was incorrect, expected: %v, got: %v", tc.err, err)
+			}
 
+			// only try a get if there was no error during put
+			if err != nil {
+				return
+			}
+
+			v, _ := Get(tc.pkey)
 			if v != tc.gval {
 				t.Errorf("Value was incorrect, expected: %s, got: %s", tc.gval, v)
 			}
@@ -49,6 +65,14 @@ func TestGet(t *testing.T) {
 			t.Errorf("Expected err to be nil, got %v instead", err)
 		}
 	})
+
+	t.Run("query key too large", func(t *testing.T) {
+		_, err := Get(getALongString())
+
+		if err != ErrorKeySizeTooLarge {
+			t.Errorf("Expected err to be nil, got %v instead", err)
+		}
+	})
 }
 
 func TestDelete(t *testing.T) {
@@ -61,12 +85,13 @@ func TestDelete(t *testing.T) {
 	}{
 		{"value already in store", "testDeleteKey1", nil},
 		{"value not in store", "testDeleteKey2", nil},
+		{"key too large", getALongString(), ErrorKeySizeTooLarge},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Delete(tc.val)
-			if err != nil {
+			if err != tc.err {
 				t.Errorf("Expected err to be %v, got %v instead, value: %s", tc.err, err, tc.val)
 			}
 		})

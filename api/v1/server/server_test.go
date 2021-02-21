@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/shubham1172/gokv/internal/logger"
 	"github.com/shubham1172/gokv/pkg/store"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +10,19 @@ import (
 	"strings"
 	"testing"
 )
+
+type dummyLogger struct{}
+
+func (d *dummyLogger) WriteDelete(key string)                          {}
+func (d *dummyLogger) WritePut(key, value string)                      {}
+func (d *dummyLogger) Err() <-chan error                               { return nil }
+func (d *dummyLogger) ReadEvents() (<-chan logger.Event, <-chan error) { return nil, nil }
+func (d *dummyLogger) Run()                                            {}
+func (d *dummyLogger) Stop()                                           {}
+
+func getALongString() string {
+	return strings.Repeat("a", 1025)
+}
 
 func TestKeyPutHandler(t *testing.T) {
 	testCases := []struct {
@@ -20,6 +34,8 @@ func TestKeyPutHandler(t *testing.T) {
 		{"missing key", "", "testKeyPutHandlerValue1", http.StatusBadRequest},
 		{"missing value", "testKeyPutHandlerKey1", "", http.StatusBadRequest},
 		{"valid request", "testKeyPutHandlerKey1", "testKeyPutHandlerValue1", http.StatusCreated},
+		{"really long key", getALongString(), "testKeyPutHandlerValue2", http.StatusBadRequest},
+		{"really long value", "testKeyPutHandlerKey2", getALongString(), http.StatusBadRequest},
 	}
 
 	for _, tc := range testCases {
@@ -34,7 +50,7 @@ func TestKeyPutHandler(t *testing.T) {
 			})
 
 			rec := httptest.NewRecorder()
-			keyPutHandler(rec, req)
+			keyPutHandler(rec, req, &dummyLogger{})
 
 			res := rec.Result()
 			defer res.Body.Close()
@@ -55,6 +71,7 @@ func TestKeyGetHandler(t *testing.T) {
 		{"missing key (URL)", "", http.StatusBadRequest, ""},
 		{"missing key (store)", "testKeyGetHandlerKey1", http.StatusNotFound, ""},
 		{"valid key", "testKeyGetHandlerKey2", http.StatusOK, "testKeyGetHandlerValue2"},
+		{"really long key", getALongString(), http.StatusBadRequest, ""},
 	}
 
 	store.Put("testKeyGetHandlerKey2", "testKeyGetHandlerValue2")
@@ -100,6 +117,7 @@ func TestKeyDeleteHandler(t *testing.T) {
 		{"missing key", "", http.StatusBadRequest},
 		{"missing key (store)", "testKeyDeleteHandlerKey1", http.StatusOK},
 		{"valid key", "testKeyDeleteHandlerKey2", http.StatusOK},
+		{"really long key", getALongString(), http.StatusBadRequest},
 	}
 
 	store.Put("testKeyDeleteHandlerKey2", "testKeyDeleteHandlerValue2")
@@ -116,7 +134,7 @@ func TestKeyDeleteHandler(t *testing.T) {
 			})
 
 			rec := httptest.NewRecorder()
-			keyDeleteHandler(rec, req)
+			keyDeleteHandler(rec, req, &dummyLogger{})
 
 			res := rec.Result()
 			defer res.Body.Close()

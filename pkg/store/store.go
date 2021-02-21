@@ -2,12 +2,25 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
-// ErrorKeyNotFound is returned by the Get method to indicate
-// that the key was not present in the store.
-var ErrorKeyNotFound = errors.New("Key not found")
+const (
+	maxKeySize   = 1024
+	maxValueSize = 1024
+)
+
+var (
+	// ErrorKeyNotFound is returned by the Get method to indicate that the key was not present in the store.
+	ErrorKeyNotFound = errors.New("Key not found")
+
+	// ErrorKeySizeTooLarge is returned to indicate that the key size is more than the max permittable size.
+	ErrorKeySizeTooLarge = errors.New(fmt.Sprintf("Key size too large, max permissible: %d", maxKeySize))
+
+	// ErrorValueSizeTooLarge is return to indicate that the value size is more than the max permittable size.
+	ErrorValueSizeTooLarge = errors.New(fmt.Sprintf("Value size too large, max permissible: %d", maxValueSize))
+)
 
 var store = struct {
 	sync.RWMutex
@@ -17,6 +30,13 @@ var store = struct {
 // Put a value in the store against a key. If the key already exists,
 // it is overwritten.
 func Put(k string, v string) error {
+	if len(k) > maxKeySize {
+		return ErrorKeySizeTooLarge
+	}
+	if len(v) > maxValueSize {
+		return ErrorValueSizeTooLarge
+	}
+
 	store.Lock()
 	store.m[k] = v
 	store.Unlock()
@@ -27,6 +47,10 @@ func Put(k string, v string) error {
 // Get returns a value from the store associated with a key.
 // Returns ErrorKeyNotFound if key does not exist.
 func Get(k string) (string, error) {
+	if len(k) > maxKeySize {
+		return "", ErrorKeySizeTooLarge
+	}
+
 	store.RLock()
 	v, ok := store.m[k]
 	store.RUnlock()
@@ -41,6 +65,10 @@ func Get(k string) (string, error) {
 // Delete ensures that a key does not exist in the store.
 // If a key is missing, the function passes silently.
 func Delete(k string) error {
+	if len(k) > maxKeySize {
+		return ErrorKeySizeTooLarge
+	}
+
 	delete(store.m, k)
 	return nil
 }

@@ -35,7 +35,11 @@ func keyPutHandler(w http.ResponseWriter, r *http.Request, l logger.TransactionL
 
 	err = store.Put(key, string(value))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == store.ErrorKeySizeTooLarge || err == store.ErrorValueSizeTooLarge {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -55,6 +59,8 @@ func keyGetHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == store.ErrorKeyNotFound {
 			http.Error(w, err.Error(), http.StatusNotFound)
+		} else if err == store.ErrorKeySizeTooLarge {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -74,7 +80,11 @@ func keyDeleteHandler(w http.ResponseWriter, r *http.Request, l logger.Transacti
 
 	err := store.Delete(key)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == store.ErrorKeySizeTooLarge {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 

@@ -119,6 +119,7 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 func (l *FileTransactionLogger) shutdown() {
 	close(l.eventCh)
+	l.file.Close()
 	// notify shutdown complete
 	go func() { l.shutdownCompleteCh <- struct{}{} }()
 }

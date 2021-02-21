@@ -6,7 +6,7 @@ Key-value store in Go
 
 - Store arbitrary key-value pairs
 - APIs for CRUD
-- Persistance
+- Persistant (Failure resiliant)
     - Transactional logs - TODO: binary instead of plain-text
         - Seq no, Event type, key, value
 
