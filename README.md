@@ -40,4 +40,5 @@ godoc -http=:8081
     - Essentially, remove each put-delete pair
     - Keep the latest overwrite for each put
     - Remove all other delete(s)
+- Encode whitespaces/linebreaks in key/value for logging
 - Convert log to some binary format - protobuf? bson?

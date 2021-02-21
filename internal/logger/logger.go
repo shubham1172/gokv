@@ -10,6 +10,8 @@ const (
 	EventPut
 )
 
+// Event describes an operation in the transaction.
+// Events in a transaction are monotonically ascending in nature.
 type Event struct {
 	// Sequence is a unique record ID.
 	Sequence uint64

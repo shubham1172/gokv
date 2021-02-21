@@ -21,7 +21,7 @@ type FileTransactionLogger struct {
 	file               *os.File      // Pointer to the physical file
 }
 
-// Create a new FileTransactionLogger to write logs to the file pointed by filename.
+// NewFileTransactionLogger returns a new logger which writes to the file pointed by the filename
 func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
@@ -37,14 +37,17 @@ func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
 	}, nil
 }
 
+// WriteDelete sends an EventDelete to the event channel.
 func (l *FileTransactionLogger) WriteDelete(key string) {
 	l.eventCh <- Event{EventType: EventDelete, Key: key}
 }
 
+// WritePut sends an EventPut to the event channel.
 func (l *FileTransactionLogger) WritePut(key, value string) {
 	l.eventCh <- Event{EventType: EventPut, Key: key, Value: value}
 }
 
+// Err returns a channel that can be used to receive errors from.
 func (l *FileTransactionLogger) Err() <-chan error {
 	return l.errorCh
 }
@@ -67,6 +70,8 @@ func (l *FileTransactionLogger) write(e Event, wg *sync.WaitGroup) {
 	}
 }
 
+// Run the logger by handling logging requests and shuts down gracefully if required.
+// Note, this should always be spawned as a goroutine.
 func (l *FileTransactionLogger) Run() {
 	var wg sync.WaitGroup
 
@@ -86,6 +91,9 @@ func (l *FileTransactionLogger) Run() {
 	}
 }
 
+// ReadEvents reads the logs and replays the events on the Event channel.
+// If the transaction numbers are out of sequence, or not in monotonical ascending order,
+// it returns an error on the error channel.
 func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file)
 	outEvent := make(chan Event)
@@ -125,6 +133,7 @@ func (l *FileTransactionLogger) shutdown() {
 	go func() { l.shutdownCompleteCh <- struct{}{} }()
 }
 
+// Stop the logger by sending a signal to the shutdown channel.
 func (l *FileTransactionLogger) Stop() {
 	// initiate the shutdown
 	l.shutdownCh <- struct{}{}

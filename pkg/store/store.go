@@ -16,10 +16,10 @@ var (
 	ErrorKeyNotFound = errors.New("Key not found")
 
 	// ErrorKeySizeTooLarge is returned to indicate that the key size is more than the max permittable size.
-	ErrorKeySizeTooLarge = errors.New(fmt.Sprintf("Key size too large, max permissible: %d", maxKeySize))
+	ErrorKeySizeTooLarge = fmt.Errorf("Key size too large, max permissible: %d", maxKeySize)
 
 	// ErrorValueSizeTooLarge is return to indicate that the value size is more than the max permittable size.
-	ErrorValueSizeTooLarge = errors.New(fmt.Sprintf("Value size too large, max permissible: %d", maxValueSize))
+	ErrorValueSizeTooLarge = fmt.Errorf("Value size too large, max permissible: %d", maxValueSize)
 )
 
 var store = struct {
