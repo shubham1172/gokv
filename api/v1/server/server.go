@@ -79,7 +79,8 @@ func keyDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func Start() {
+// Start the http server on the given address.
+func Start(addr string) {
 	r := mux.NewRouter()
 
 	// register routes
@@ -87,5 +88,5 @@ func Start() {
 	r.HandleFunc("/api/v1/key/{key}", keyGetHandler).Methods("GET")
 	r.HandleFunc("/api/v1/key/{key}", keyDeleteHandler).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(addr, r))
 }
