@@ -30,9 +30,14 @@ go fmt .\...
 godoc -http=:8081
 ```
 
-# Other TODOs
+# TODOs
 - Configuration for buffer size, service address, log file name, etc.
 - Dockerize
 - Swagger
 - More tests
 - Makefile
+- On startup, cleanup the logs
+    - Essentially, remove each put-delete pair
+    - Keep the latest overwrite for each put
+    - Remove all other delete(s)
+- Convert log to some binary format - protobuf? bson?

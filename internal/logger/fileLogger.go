@@ -59,6 +59,7 @@ func (l *FileTransactionLogger) write(e Event, wg *sync.WaitGroup) {
 	l.Lock()
 	defer l.Unlock()
 
+	// the first sequence SHOULD start from 1 in order to support ReadEvents
 	l.lastSequence++
 	_, err := fmt.Fprintf(l.file, l.formatLog(l.lastSequence, e))
 	if err != nil {
