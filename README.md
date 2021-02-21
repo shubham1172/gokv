@@ -7,13 +7,14 @@ Key-value store in Go
 - Store arbitrary key-value pairs
 - APIs for CRUD
 - Persistance
+    - Transactional logs - TODO: binary instead of plain-text
+        - Seq no, Event type, key, value
 
 # Features
 
 - Idempotant
 
 # HTTP endpoints
-Might use swagger later.
 
 Method|Endpoint|Purpose|Possible return types
 --|--|--|--
@@ -22,10 +23,16 @@ Get the value given a key|GET|/api/v1/key/{key}|200, 404, 500
 Delete a key-value pair|DELETE|/api/v1/key/{key}|200, 500
 
 # Handy commands
-TODO: Add a Makefile for this
 
 ```sh
 go test -cover .\...
 go fmt .\...
 godoc -http=:8081
 ```
+
+# Other TODOs
+- Configuration for buffer size, service address, log file name, etc.
+- Dockerize
+- Swagger
+- More tests
+- Makefile

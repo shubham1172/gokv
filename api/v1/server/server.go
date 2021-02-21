@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/shubham1172/gokv/internal/logger"
 	"github.com/shubham1172/gokv/pkg/store"
 	"io/ioutil"
 	"log"
@@ -12,7 +13,7 @@ const messageKeyNotFound string = "Key missing. Usage: /api/v1/key/:key"
 const messageValueNotFound string = "Value missing in the request body"
 
 // serves PUT /api/v1/key/{key}
-func keyPutHandler(w http.ResponseWriter, r *http.Request) {
+func keyPutHandler(w http.ResponseWriter, r *http.Request, l logger.TransactionLogger) {
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, messageKeyNotFound, http.StatusBadRequest)
@@ -38,6 +39,7 @@ func keyPutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	l.WritePut(key, string(value))
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -63,7 +65,7 @@ func keyGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /// serves DELETE /api/v1/key/{key}
-func keyDeleteHandler(w http.ResponseWriter, r *http.Request) {
+func keyDeleteHandler(w http.ResponseWriter, r *http.Request, l logger.TransactionLogger) {
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, messageKeyNotFound, http.StatusBadRequest)
@@ -76,17 +78,24 @@ func keyDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	l.WriteDelete(key)
 	w.WriteHeader(http.StatusOK)
 }
 
+func wrapLogger(l logger.TransactionLogger, handler func(w http.ResponseWriter, r *http.Request, l logger.TransactionLogger)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r, l)
+	}
+}
+
 // Start the http server on the given address.
-func Start(addr string) {
+func Start(addr string, l logger.TransactionLogger) {
 	r := mux.NewRouter()
 
 	// register routes
-	r.HandleFunc("/api/v1/key/{key}", keyPutHandler).Methods("PUT")
+	r.HandleFunc("/api/v1/key/{key}", wrapLogger(l, keyPutHandler)).Methods("PUT")
 	r.HandleFunc("/api/v1/key/{key}", keyGetHandler).Methods("GET")
-	r.HandleFunc("/api/v1/key/{key}", keyDeleteHandler).Methods("DELETE")
+	r.HandleFunc("/api/v1/key/{key}", wrapLogger(l, keyDeleteHandler)).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(addr, r))
 }
