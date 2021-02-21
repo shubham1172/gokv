@@ -8,11 +8,14 @@ import (
 	"net/http"
 )
 
+const messageKeyNotFound string = "Key missing. Usage: /api/v1/key/:key"
+const messageValueNotFound string = "Value missing in the request body"
+
 // serves PUT /api/v1/key/{key}
 func keyPutHandler(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
 	if key == "" {
-		http.Error(w, "Key missing. Usage: /api/v1/key/:key", http.StatusBadRequest)
+		http.Error(w, messageKeyNotFound, http.StatusBadRequest)
 		return
 	}
 
@@ -25,7 +28,7 @@ func keyPutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(value) == 0 {
-		http.Error(w, "Value missing in the request body", http.StatusBadRequest)
+		http.Error(w, messageValueNotFound, http.StatusBadRequest)
 		return
 	}
 
@@ -42,7 +45,7 @@ func keyPutHandler(w http.ResponseWriter, r *http.Request) {
 func keyGetHandler(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
 	if key == "" {
-		http.Error(w, "Key missing. Usage: /api/v1/key/:key", http.StatusBadRequest)
+		http.Error(w, messageKeyNotFound, http.StatusBadRequest)
 		return
 	}
 
@@ -63,7 +66,7 @@ func keyGetHandler(w http.ResponseWriter, r *http.Request) {
 func keyDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
 	if key == "" {
-		http.Error(w, "Key missing. Usage: /api/v1/key/:key", http.StatusBadRequest)
+		http.Error(w, messageKeyNotFound, http.StatusBadRequest)
 		return
 	}
 
