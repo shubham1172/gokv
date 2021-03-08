@@ -3,6 +3,7 @@ package logger
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 )
@@ -16,7 +17,7 @@ type FileTransactionLogger struct {
 	eventCh            chan Event    // Channel for sending events
 	errorCh            chan error    // Channel for receiving errors
 	shutdownCh         chan struct{} // Channel for initiating shutdown
-	shutdownCompleteCh chan struct{} // Channel to receive shutdown complete signal
+	shutdownCompleteCh chan struct{} // Channel for receiving shutdown complete signal
 	lastSequence       uint64        // The last used event sequence number
 	file               *os.File      // Pointer to the physical file
 }
@@ -128,7 +129,11 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 func (l *FileTransactionLogger) shutdown() {
 	close(l.eventCh)
-	l.file.Close()
+	err := l.file.Close()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// notify shutdown complete
 	go func() { l.shutdownCompleteCh <- struct{}{} }()
 }

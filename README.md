@@ -25,6 +25,7 @@ Delete a key-value pair|DELETE|/api/v1/key/{key}|200, 400, 500
 go test -cover .\...
 go fmt .\...
 godoc -http=:8081
+docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgres
 ```
 
 # TODOs
@@ -39,3 +40,5 @@ godoc -http=:8081
     - Remove all other delete(s)
 - Encode whitespaces/linebreaks in key/value for logging
 - Convert log to some binary format - protobuf? bson?
+- Use contexts
+- Authentication

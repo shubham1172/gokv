@@ -21,7 +21,15 @@ var tlogger logger.TransactionLogger
 func initializeTransactionLogger(filename string) error {
 	var err error
 
-	tlogger, err = logger.NewFileTransactionLogger(filename)
+	pgConfig := logger.PostgresDbConfig{
+		DBName:   "postgres",
+		Host:     "0.0.0.0",
+		User:     "postgres",
+		Password: "password",
+	}
+
+	// tlogger, err = logger.NewFileTransactionLogger(filename)
+	tlogger, err = logger.NewPostgresTransactionLogger(pgConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create a new logger: %v", err)
 	}

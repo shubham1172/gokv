@@ -7,8 +7,11 @@ import (
 )
 
 const (
-	maxKeySize   = 1024
-	maxValueSize = 1024
+	// MaxKeySize for store keys
+	MaxKeySize = 1024
+
+	// MaxValueSize for store values
+	MaxValueSize = 1024
 )
 
 var (
@@ -16,10 +19,10 @@ var (
 	ErrorKeyNotFound = errors.New("Key not found")
 
 	// ErrorKeySizeTooLarge is returned to indicate that the key size is more than the max permittable size.
-	ErrorKeySizeTooLarge = fmt.Errorf("Key size too large, max permissible: %d", maxKeySize)
+	ErrorKeySizeTooLarge = fmt.Errorf("Key size too large, max permissible: %d", MaxKeySize)
 
 	// ErrorValueSizeTooLarge is return to indicate that the value size is more than the max permittable size.
-	ErrorValueSizeTooLarge = fmt.Errorf("Value size too large, max permissible: %d", maxValueSize)
+	ErrorValueSizeTooLarge = fmt.Errorf("Value size too large, max permissible: %d", MaxValueSize)
 )
 
 var store = struct {
@@ -30,10 +33,10 @@ var store = struct {
 // Put a value in the store against a key. If the key already exists,
 // it is overwritten.
 func Put(k string, v string) error {
-	if len(k) > maxKeySize {
+	if len(k) > MaxKeySize {
 		return ErrorKeySizeTooLarge
 	}
-	if len(v) > maxValueSize {
+	if len(v) > MaxValueSize {
 		return ErrorValueSizeTooLarge
 	}
 
@@ -47,7 +50,7 @@ func Put(k string, v string) error {
 // Get returns a value from the store associated with a key.
 // Returns ErrorKeyNotFound if key does not exist.
 func Get(k string) (string, error) {
-	if len(k) > maxKeySize {
+	if len(k) > MaxKeySize {
 		return "", ErrorKeySizeTooLarge
 	}
 
@@ -65,7 +68,7 @@ func Get(k string) (string, error) {
 // Delete ensures that a key does not exist in the store.
 // If a key is missing, the function passes silently.
 func Delete(k string) error {
-	if len(k) > maxKeySize {
+	if len(k) > MaxKeySize {
 		return ErrorKeySizeTooLarge
 	}
 
