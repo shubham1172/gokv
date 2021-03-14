@@ -23,7 +23,6 @@ func initializeTransactionLogger(filename string) error {
 
 	pgConfig := logger.NewPostgresDbConfig("postgres", "gokv_pgdb", "root", "password", false)
 
-	// tlogger, err = logger.NewFileTransactionLogger(filename)
 	tlogger, err = logger.NewPostgresTransactionLogger(pgConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create a new logger: %v", err)

@@ -41,11 +41,8 @@ func NewPostgresDbConfig(dbName, host, user, password string, sslEnabled bool) p
 // PostgresTransactionLogger is a type that defines a logger which
 // writes to a postgres instance.
 type PostgresTransactionLogger struct {
-	eventCh            chan Event    // Channel for sending events
-	errorCh            chan error    // Channel for receiving errors
-	shutdownCh         chan struct{} // Channel for initiating shutdown
-	shutdownCompleteCh chan struct{} // Channel for receiving shutdown complete signal
-	db                 *sql.DB       // Database interface
+	*transactionLogger
+	db *sql.DB // Database interface
 }
 
 // NewPostgresTransactionLogger returns a new logger which writes to the postgres instance pointed by the parameters.
@@ -63,13 +60,7 @@ func NewPostgresTransactionLogger(config postgresDbConfig) (TransactionLogger, e
 		return nil, fmt.Errorf("failed to connect to the database: %v", err)
 	}
 
-	l := &PostgresTransactionLogger{
-		eventCh:            make(chan Event, 16),
-		errorCh:            make(chan error, 1),
-		shutdownCh:         make(chan struct{}),
-		shutdownCompleteCh: make(chan struct{}),
-		db:                 db,
-	}
+	l := &PostgresTransactionLogger{transactionLogger: newTransactionLogger(), db: db}
 
 	exists, err := l.verifyTableExists()
 	if err != nil {
@@ -84,6 +75,7 @@ func NewPostgresTransactionLogger(config postgresDbConfig) (TransactionLogger, e
 	return l, nil
 }
 
+// verify if the table transactionTableName exists or not.
 func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
 	q := `SELECT to_regclass($1)`
 
@@ -108,6 +100,7 @@ func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
 	return false, nil
 }
 
+// create the transactionTableName table in the database.
 func (l *PostgresTransactionLogger) createTable() error {
 	q := `CREATE TABLE %s (
 		id SERIAL PRIMARY KEY,
@@ -124,6 +117,7 @@ func (l *PostgresTransactionLogger) createTable() error {
 	return nil
 }
 
+// insert an event in the database.
 func (l *PostgresTransactionLogger) insert(e Event, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -136,40 +130,16 @@ func (l *PostgresTransactionLogger) insert(e Event, wg *sync.WaitGroup) {
 	}
 }
 
-// Run the logger by handling logging requests and shuts down gracefully if required.
-// Note, this should be spawned as a go.routine.
-func (l *PostgresTransactionLogger) Run() {
-	var wg sync.WaitGroup
+// close the database and notify shutdown complete.
+func (l *PostgresTransactionLogger) shutdown() {
+	close(l.eventCh)
 
-	run := true
-	for run {
-		select {
-		// handle logging request
-		case e := <-l.eventCh:
-			wg.Add(1)
-			go l.insert(e, &wg)
-		// handle shutdown request
-		case _ = <-l.shutdownCh:
-			wg.Wait()
-			l.shutdown()
-			run = false
-		}
+	err := l.db.Close()
+	if err != nil {
+		log.Fatalln(err)
 	}
-}
 
-// WriteDelete sends an EventDelete to the event channel.
-func (l *PostgresTransactionLogger) WriteDelete(key string) {
-	l.eventCh <- Event{EventType: EventDelete, Key: key}
-}
-
-// WritePut sends an EventPut to the event channel.
-func (l *PostgresTransactionLogger) WritePut(key, value string) {
-	l.eventCh <- Event{EventType: EventPut, Key: key, Value: value}
-}
-
-// Err returns a channel that can be used to receive errors from.
-func (l *PostgresTransactionLogger) Err() <-chan error {
-	return l.errorCh
+	go func() { l.shutdownCompleteCh <- struct{}{} }()
 }
 
 // ReadEvents reads the database and replays the events on the Event channel.
@@ -211,22 +181,22 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	return outEvent, outError
 }
 
-func (l *PostgresTransactionLogger) shutdown() {
-	close(l.eventCh)
-	err := l.db.Close()
-	if err != nil {
-		log.Fatalln(err)
+// Run the logger by handling logging requests and shutdown gracefully if required.
+func (l *PostgresTransactionLogger) Run() {
+	var wg sync.WaitGroup
+
+	run := true
+	for run {
+		select {
+		// handle logging request
+		case e := <-l.eventCh:
+			wg.Add(1)
+			go l.insert(e, &wg)
+		// handle shutdown request
+		case _ = <-l.shutdownCh:
+			wg.Wait()
+			l.shutdown()
+			run = false
+		}
 	}
-
-	// notify shutdown complete
-	go func() { l.shutdownCompleteCh <- struct{}{} }()
-}
-
-// Stop the logger by sending a signal to the shutdown channel and closes
-// the database connection.
-func (l *PostgresTransactionLogger) Stop() {
-	// initiate the shutdown
-	l.shutdownCh <- struct{}{}
-	// wait for the shutdown to complete
-	<-l.shutdownCompleteCh
 }
