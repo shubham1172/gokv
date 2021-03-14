@@ -12,7 +12,7 @@ import (
 )
 
 // Port to start the server on.
-const Port = 8080
+const Port = 8000
 
 var tlogger logger.TransactionLogger
 
@@ -21,12 +21,7 @@ var tlogger logger.TransactionLogger
 func initializeTransactionLogger(filename string) error {
 	var err error
 
-	pgConfig := logger.PostgresDbConfig{
-		DBName:   "postgres",
-		Host:     "0.0.0.0",
-		User:     "postgres",
-		Password: "password",
-	}
+	pgConfig := logger.NewPostgresDbConfig("postgres", "gokv_pgdb", "root", "password", false)
 
 	// tlogger, err = logger.NewFileTransactionLogger(filename)
 	tlogger, err = logger.NewPostgresTransactionLogger(pgConfig)

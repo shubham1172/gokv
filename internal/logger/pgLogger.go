@@ -12,13 +12,30 @@ import (
 // Table name where transactions are stored.
 const transactionTableName = "transactions"
 
-// PostgresDbConfig is a type that holds configuration associated
+// postgresDbConfig is a type that holds configuration associated
 // with managing a postgres instance.
-type PostgresDbConfig struct {
-	DBName   string
-	Host     string
-	User     string
-	Password string
+type postgresDbConfig struct {
+	DBName    string
+	Host      string
+	User      string
+	Password  string
+	SslStatus string
+}
+
+// NewPostgresDbConfig returns a postgres configuration object instance
+func NewPostgresDbConfig(dbName, host, user, password string, sslEnabled bool) postgresDbConfig {
+	sslStatus := "require"
+	if !sslEnabled {
+		sslStatus = "disable"
+	}
+
+	return postgresDbConfig{
+		DBName:    dbName,
+		Host:      host,
+		User:      user,
+		Password:  password,
+		SslStatus: sslStatus,
+	}
 }
 
 // PostgresTransactionLogger is a type that defines a logger which
@@ -31,53 +48,10 @@ type PostgresTransactionLogger struct {
 	db                 *sql.DB       // Database interface
 }
 
-// WriteDelete sends an EventDelete to the event channel.
-func (l *PostgresTransactionLogger) WriteDelete(key string) {
-	l.eventCh <- Event{EventType: EventDelete, Key: key}
-}
-
-// WritePut sends an EventPut to the event channel.
-func (l *PostgresTransactionLogger) WritePut(key, value string) {
-	l.eventCh <- Event{EventType: EventPut, Key: key, Value: value}
-}
-
-// Err returns a channel that can be used to receive errors from.
-func (l *PostgresTransactionLogger) Err() <-chan error {
-	return l.errorCh
-}
-
-func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
-	q := `SELECT to_regclass('$1')`
-
-	rows, err := l.db.Query(q, transactionTableName)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	return true, nil
-}
-
-func (l *PostgresTransactionLogger) createTable() error {
-	q := `CREATE TABLE $1 (
-		id SERIAL CONSTRAINT PRIMARY KEY,
-		event_type INTEGER NOT NULL,
-		key VARCHAR($2),
-		value VARCHAR ($3)
-	);
-	`
-	_, err := l.db.Exec(q, transactionTableName, store.MaxKeySize, store.MaxValueSize)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // NewPostgresTransactionLogger returns a new logger which writes to the postgres instance pointed by the parameters.
-func NewPostgresTransactionLogger(config PostgresDbConfig) (TransactionLogger, error) {
-	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s",
-		config.Host, config.DBName, config.User, config.Password)
+func NewPostgresTransactionLogger(config postgresDbConfig) (TransactionLogger, error) {
+	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=%s",
+		config.Host, config.DBName, config.User, config.Password, config.SslStatus)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -89,7 +63,13 @@ func NewPostgresTransactionLogger(config PostgresDbConfig) (TransactionLogger, e
 		return nil, fmt.Errorf("failed to connect to the database: %v", err)
 	}
 
-	l := &PostgresTransactionLogger{db: db}
+	l := &PostgresTransactionLogger{
+		eventCh:            make(chan Event, 16),
+		errorCh:            make(chan error, 1),
+		shutdownCh:         make(chan struct{}),
+		shutdownCompleteCh: make(chan struct{}),
+		db:                 db,
+	}
 
 	exists, err := l.verifyTableExists()
 	if err != nil {
@@ -104,15 +84,53 @@ func NewPostgresTransactionLogger(config PostgresDbConfig) (TransactionLogger, e
 	return l, nil
 }
 
+func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
+	q := `SELECT to_regclass($1)`
+
+	rows, err := l.db.Query(q, transactionTableName)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tableName string
+		rows.Scan(&tableName)
+
+		// pg returned (null)
+		if tableName == "" {
+			return false, nil
+		}
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (l *PostgresTransactionLogger) createTable() error {
+	q := `CREATE TABLE %s (
+		id SERIAL PRIMARY KEY,
+		event_type INTEGER NOT NULL,
+		key VARCHAR(%d),
+		value VARCHAR (%d)
+	);
+	`
+	_, err := l.db.Exec(fmt.Sprintf(q, transactionTableName, store.MaxKeySize, store.MaxValueSize))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (l *PostgresTransactionLogger) insert(e Event, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	q := `
-	INSERT INTO $1
-		(event_type, key, value)
-		VALUES ($2, $3, $4)`
+	q := `INSERT INTO ` + transactionTableName +
+		`(event_type, key, value) VALUES ($1, $2, $3)`
 
-	_, err := l.db.Exec(q, transactionTableName, e.EventType, e.Key, e.Value)
+	_, err := l.db.Exec(q, e.EventType, e.Key, e.Value)
 	if err != nil {
 		go func() { l.errorCh <- err }()
 	}
@@ -139,6 +157,21 @@ func (l *PostgresTransactionLogger) Run() {
 	}
 }
 
+// WriteDelete sends an EventDelete to the event channel.
+func (l *PostgresTransactionLogger) WriteDelete(key string) {
+	l.eventCh <- Event{EventType: EventDelete, Key: key}
+}
+
+// WritePut sends an EventPut to the event channel.
+func (l *PostgresTransactionLogger) WritePut(key, value string) {
+	l.eventCh <- Event{EventType: EventPut, Key: key, Value: value}
+}
+
+// Err returns a channel that can be used to receive errors from.
+func (l *PostgresTransactionLogger) Err() <-chan error {
+	return l.errorCh
+}
+
 // ReadEvents reads the database and replays the events on the Event channel.
 func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	outEvent := make(chan Event)
@@ -148,9 +181,9 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 		defer close(outEvent)
 		defer close(outError)
 
-		q := `SELECT sequence, event_type, key, value FROM $1`
+		q := `SELECT id, event_type, key, value FROM ` + transactionTableName + ` ORDER BY id`
 
-		rows, err := l.db.Query(q, transactionTableName)
+		rows, err := l.db.Query(q)
 		if err != nil {
 			outError <- fmt.Errorf("sql query error: %v", err)
 			return

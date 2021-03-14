@@ -32,6 +32,7 @@ docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgr
 - Configuration for buffer size, service address, log file name, etc.
 - Dockerize
 - Swagger
+- General logging framework
 - More tests
 - Makefile
 - On startup, cleanup the logs

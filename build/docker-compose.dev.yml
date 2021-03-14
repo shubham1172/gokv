@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  # API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gokv_api
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgresdb
+    volumes:
+      - ../:/app
+  
+  # postgres database
+  postgresdb:
+    image: postgres:13.2
+    restart: always
+    container_name: gokv_pgdb
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password 
+    ports:
+      - 5432:5432
+
+  # user interface for database
+  adminer:
+    image: adminer
+    restart: always
+    container_name: gokv_adminer
+    ports:
+      - 8080:8080
