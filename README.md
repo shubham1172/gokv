@@ -29,10 +29,13 @@ docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgr
 ```
 
 # TODOs
+- **Convert TODOs to GitHub issues**
 - Configuration for buffer size, service address, log file name, etc.
-- Dockerize
+- Dockerfile/compose for prod
+- Find hot-reloading alternative for windows
+    - fsnotify refuses to work on windows containers
 - Swagger
-- General logging framework
+- Refactor logging
 - More tests
 - Makefile
 - On startup, cleanup the logs
@@ -40,6 +43,6 @@ docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgr
     - Keep the latest overwrite for each put
     - Remove all other delete(s)
 - Encode whitespaces/linebreaks in key/value for logging
-- Convert log to some binary format - protobuf? bson?
+- Convert file logger to some binary format - protobuf? bson?
 - Use contexts
 - Authentication
