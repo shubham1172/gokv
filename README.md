@@ -35,6 +35,7 @@ docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgr
 - Find hot-reloading alternative for windows
     - fsnotify refuses to work on windows containers
 - Swagger
+- TLS
 - Refactor logging
 - More tests
 - Makefile
