@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/shubham1172/gokv/api/v1/server"
 	"github.com/shubham1172/gokv/config"
 	"github.com/shubham1172/gokv/internal/logger"
@@ -52,7 +53,7 @@ func main() {
 	} else if configuration.Logging.LogType == "database" {
 		tlogger, err = logger.NewPostgresTransactionLogger(configuration.Database)
 	} else {
-		log.Fatalf("invalid logtype defined; supported: file, database")
+		err = fmt.Errorf("invalid logtype defined; supported: file, database")
 	}
 	if err != nil {
 		log.Fatalf("failed to create a new instance of logger: %v", err)
