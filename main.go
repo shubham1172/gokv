@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/shubham1172/gokv/api/v1/server"
+	"github.com/shubham1172/gokv/config"
 	"github.com/shubham1172/gokv/internal/logger"
 	"github.com/shubham1172/gokv/pkg/store"
 	"log"
@@ -14,19 +14,9 @@ import (
 // Port to start the server on.
 const Port = 8000
 
-var tlogger logger.TransactionLogger
-
-// This will create a new instance of the file logger and read the events from the log.
-// It will then replay those events to make sure that the internal state is upto date.
-func initializeTransactionLogger(filename string) error {
+// This will read the events from the log and replay them to make sure that the internal state is upto date.
+func initializeTransactionLogger(tlogger logger.TransactionLogger) error {
 	var err error
-
-	pgConfig := logger.NewPostgresDbConfig("postgres", "gokv_pgdb", "root", "password", false)
-
-	tlogger, err = logger.NewPostgresTransactionLogger(pgConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create a new logger: %v", err)
-	}
 
 	events, errors := tlogger.ReadEvents()
 	ok, e := true, logger.Event{}
@@ -50,9 +40,27 @@ func initializeTransactionLogger(filename string) error {
 }
 
 func main() {
-	err := initializeTransactionLogger("transaction.log")
+	configuration, err := config.GetConfiguration()
 	if err != nil {
-		log.Fatalf("Failed to initialize the logger: %v", err)
+		log.Fatalf("Failed to read configuration: %v", err)
+	}
+
+	var tlogger logger.TransactionLogger
+
+	if configuration.Logging.LogType == "file" {
+		tlogger, err = logger.NewFileTransactionLogger(configuration.Logging.LogFileName)
+	} else if configuration.Logging.LogType == "database" {
+		tlogger, err = logger.NewPostgresTransactionLogger(configuration.Database)
+	} else {
+		log.Fatalf("invalid logtype defined; supported: file, database")
+	}
+	if err != nil {
+		log.Fatalf("failed to create a new instance of logger: %v", err)
+	}
+
+	err = initializeTransactionLogger(tlogger)
+	if err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
 	}
 
 	sigchan := make(chan os.Signal, 1)
@@ -66,5 +74,5 @@ func main() {
 	}()
 
 	go tlogger.Run()
-	server.Start(fmt.Sprintf("%s:%d", "", Port), tlogger)
+	server.Start(configuration.Server.Address, tlogger)
 }

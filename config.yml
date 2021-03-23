@@ -1,0 +1,13 @@
+server:
+  address: ":8000"
+
+logging:
+  logtype: "file" # file or database
+  logfilename: "transactions.log"
+
+database:
+  dbname: ""
+  host: ""
+  user: ""
+  password: ""
+  ssl_status: "" # "require" or "disable"

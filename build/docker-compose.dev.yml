@@ -6,6 +6,15 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     container_name: gokv_api
+    environment:
+      - GOKV_SERVER_ADDRESS=:8000
+      - GOKV_LOGGING_LOGTYPE=database
+      - GOKV_LOGGING_LOGFILENAME=
+      - GOKV_DATABASE_DBNAME=postgres
+      - GOKV_DATABASE_HOST=gokv_pgdb
+      - GOKV_DATABASE_USER=root
+      - GOKV_DATABASE_PASSWORD=password
+      - GOKV_DATABASE_SSLSTATUS=disable
     ports:
       - 8000:8000
     depends_on:

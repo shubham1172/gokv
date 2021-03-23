@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq" // Anonymous import for sql driver
+	"github.com/shubham1172/gokv/config"
 	"github.com/shubham1172/gokv/pkg/store"
 	"log"
 	"sync"
@@ -11,32 +12,6 @@ import (
 
 // Table name where transactions are stored.
 const transactionTableName = "transactions"
-
-// postgresDbConfig is a type that holds configuration associated
-// with managing a postgres instance.
-type postgresDbConfig struct {
-	DBName    string
-	Host      string
-	User      string
-	Password  string
-	SslStatus string
-}
-
-// NewPostgresDbConfig returns a postgres configuration object instance
-func NewPostgresDbConfig(dbName, host, user, password string, sslEnabled bool) postgresDbConfig {
-	sslStatus := "require"
-	if !sslEnabled {
-		sslStatus = "disable"
-	}
-
-	return postgresDbConfig{
-		DBName:    dbName,
-		Host:      host,
-		User:      user,
-		Password:  password,
-		SslStatus: sslStatus,
-	}
-}
 
 // PostgresTransactionLogger is a type that defines a logger which
 // writes to a postgres instance.
@@ -46,9 +21,9 @@ type PostgresTransactionLogger struct {
 }
 
 // NewPostgresTransactionLogger returns a new logger which writes to the postgres instance pointed by the parameters.
-func NewPostgresTransactionLogger(config postgresDbConfig) (TransactionLogger, error) {
+func NewPostgresTransactionLogger(dbConfig config.DatabaseConfiguration) (TransactionLogger, error) {
 	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=%s",
-		config.Host, config.DBName, config.User, config.Password, config.SslStatus)
+		dbConfig.Host, dbConfig.DBName, dbConfig.User, dbConfig.Password, dbConfig.SslStatus)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
