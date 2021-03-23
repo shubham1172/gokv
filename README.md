@@ -1,14 +1,13 @@
 # gokv
 Key-value store in Go
 
-# Functional goals
+# What is it?
 
-- Store arbitrary key-value pairs
-- APIs for CRUD
-- Idempotent PUT/DELETE
-- Persistent (Failure resilient)
-    - Transactional logs 
-        - Seq no, Event type, key, value
+- Gokv is a key-value store with REST APIs for adding/deleting/fetching key-value pairs
+- All requests are idempotent
+- Gokv is failure resilient. It uses transaction logs to store add & delete events and rollbacks each time it starts
+  - Supports file based and db based transaction logging
+- Gokv is configurable using a config file or environment variables
 
 # HTTP endpoints
 
@@ -53,6 +52,8 @@ docker run --rm --name pgdb -p 5432:5432 -e POSTGRES_PASSWORD=password -d postgr
 
 # TODOs
 - **Convert TODOs to GitHub issues**
+- Clean up the README
+- CLI support for interacting with store
 - Dockerfile/compose for prod
 - Find hot-reloading alternative for windows
     - fsnotify refuses to work on windows containers
