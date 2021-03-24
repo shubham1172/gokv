@@ -11,7 +11,7 @@ Key-value store in Go
 
 # HTTP endpoints
 
-Method|Endpoint|Purpose|Possible return types
+Purpose|Method|Endpoint|Possible return types
 --|--|--|--
 Put a key-value pair|PUT|/api/v1/key/{key}|201, 400, 500
 Get the value given a key|GET|/api/v1/key/{key}|200, 400, 404, 500
